@@ -25,8 +25,6 @@ cat ( "INSERIMENTO DATI METEO IN TABELLA TEMPO REALE", date()," \n\n" , file = f
 #___________________________________________________
 
 cat("collegamento al DB...",file=file_log,append=T)
-MySQL(max.con=16,fetch.default.rec=500,force.reload=FALSE)
-
 #definisco driver
 drv<-dbDriver("MySQL")
 

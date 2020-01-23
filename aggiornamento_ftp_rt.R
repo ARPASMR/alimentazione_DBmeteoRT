@@ -239,8 +239,8 @@ while( i <= length(nomefile) ){
             quit(status=1)
           }
 
-############  CANCELLO EVENTUALI RECORD RELATIVI A ISTANTI PRECEDENTI AI 3 GIORNI 
-      query_cancella_riga<-paste("delete from ",nome_tavola_recente ," where Data_e_ora<'",Sys.Date()-5,"'", sep="")
+############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 10 GIORNI 
+      query_cancella_riga<-paste("delete from ",nome_tavola_recente ," where Data_e_ora<'",Sys.Date()-10,"'", sep="")
       q_canc_riga <- try(dbGetQuery(conn, query_cancella_riga),silent=TRUE)
       if (inherits(q_canc_riga,"try-error")) {
         #cat(q_canc_riga,"\n",file=file_log,append=T)

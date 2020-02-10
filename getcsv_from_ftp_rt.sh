@@ -37,6 +37,11 @@ mget TestRT_*.csv
 mdelete TestRT_*.csv
 bye
 FINE1
+if [ "$?" -ne 0 ]
+  then
+    echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > ERRORE FTP"
+    exit 1
+fi
 FLAG=0
 { while read RIGA
   do

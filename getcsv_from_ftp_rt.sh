@@ -27,42 +27,43 @@ cd $DIRDATA
 # Scarica i dati e salvali sul PC locale
 rm -f $FTP_LOG
 NUM=`ls -1  TestRT*.csv | wc -l`
-$FTP -n -v -d <<FINE1 > $FTP_LOG
-open $FTP_SERV
-quote user $FTP_USR
-quote pass $FTP_PWD
-cd $FTP_DIR
-prompt
-mget TestRT_*.csv
-mdelete TestRT_*.csv
-bye
-FINE1
+ncftpget -u $FTP_USR -p $FTP_PWD -d $FTP_LOG -t 60 -DD ftp://$FTP_SERV/$FTP_DIR/TestRT*.csv
+#$FTP -n -v -d <<FINE1 > $FTP_LOG
+#open $FTP_SERV
+#quote user $FTP_USR
+#quote pass $FTP_PWD
+#cd $FTP_DIR
+#prompt
+#mget TestRT_*.csv
+#mdelete TestRT_*.csv
+#bye
+#FINE1
 if [ "$?" -ne 0 ]
   then
     echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > ERRORE FTP"
-    exit 1
-fi
-FLAG=0
-{ while read RIGA
-  do
-    if [ "$RIGA" = "$SUBS" ]
-    then
-      FLAG=1
-    fi
-  done
-} < $FTP_LOG
-if [ "$FLAG" -ne 1 ]
-then
-  echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > ERRORE di connessione con ftp-server!"
-  echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > Ulteriori dettagli dal file di log di ftp:"
-  echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > INIZIO: "
-{ while read RIGA
-  do
-    echo "ftp LOG  > "$RIGA
-  done
-} < $FTP_LOG
-  echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > FINE. "
-  exit 1
+#    exit 1
+#fi
+#FLAG=0
+#{ while read RIGA
+#  do
+#    if [ "$RIGA" = "$SUBS" ]
+#    then
+#      FLAG=1
+#    fi
+#  done
+#} < $FTP_LOG
+#if [ "$FLAG" -ne 1 ]
+#then
+#  echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > ERRORE di connessione con ftp-server!"
+    echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > Ulteriori dettagli dal file di log di ftp:"
+    echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > INIZIO: "
+   { while read RIGA
+     do
+       echo "ftp LOG  > "$RIGA
+     done
+   } < $FTP_LOG
+   echo "getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" > FINE. "
+   exit 1
 fi
 #
 NUM1=`ls -1  TestRT*.csv | wc -l`

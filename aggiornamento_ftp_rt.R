@@ -3,7 +3,7 @@
 ###                                       ###
 ### MR                    31/07/2019      ###
 ### MR&MS dockerizzazione 20/01/2020      ###
-###                                       ###
+### MR&MS aggiunta M_AIB  07/07/2021      ###
 #############################################      
 
 library(DBI)
@@ -30,18 +30,11 @@ drv<-dbDriver("MySQL")
 
 conn<-try(dbConnect(drv, user=as.character(Sys.getenv("MYSQL_USR")), password=as.character(Sys.getenv("MYSQL_PWD")), dbname=as.character(Sys.getenv("MYSQL_DBNAME")), host=as.character(Sys.getenv("MYSQL_HOST"))))
 
-#______________________________________________________
-# INTERROGAZIONE DB PER ESTRARRE ANAGRAFICA 
-#______________________________________________________
-cat("interrogo DB per estrarre le info di anagrafica...",file=file_log,append=T)
-q_anagrafica <- try( dbGetQuery(conn,"select IDsensore from A_Sensori, A_Stazioni where A_Stazioni.IDstazione=A_Sensori.IDstazione and IDrete in (1,4) and Storico='No'"),silent=TRUE )
-#
-if (inherits(q_anagrafica,"try-error")) {
-  #cat(q_anagrafica,"\n",file=file_log,append=T)
-  quit(status=1)
-}
-
-mysql_ID<-q_anagrafica$IDsensore
+#___________________________________________________
+#    NOMI TABELLE da alimentare
+#___________________________________________________
+ nome_tavola_recente <- "M_RealTime"   
+ nome_tavola_AIB <- "M_AIB" 
 
 #___________________________________________________
 #   PROCESSO FILE NUOVI DALLA DIRECTORY CSV_FTP 
@@ -226,7 +219,6 @@ while( i <= length(nomefile) ){
 #______________________________________________________
 # preparo query e inserisco record
 #print("inserimento righe in tavola recenti")
-          nome_tavola_recente <- "M_RealTime" 
           cat("inserimento righe in tavola recenti: ", nome_tavola_recente,"\n", file=file_log, append=T)
           query_inserimento_riga<-paste("insert into ",nome_tavola_recente,
                                         " values ", stringa,
@@ -238,6 +230,22 @@ while( i <= length(nomefile) ){
             cat(inserimento_riga,"\n",file=file_log,append=T)
             quit(status=1)
           }
+
+#__________________________________
+#zippo file di dati inseriti 
+  comando<-paste("gzip ", nomefile[i], sep=" ")
+  #print(paste("@@@",comando,sep=""))
+  rizzippo <-try(readLines(pipe(comando)),silent=TRUE)
+  if (inherits(rizzippo,"try-error")) {
+    cat(rizzippo,"\n",file=file_log,append=T)
+    quit(status=1)
+  }
+#__________________________________
+
+  i <- i + 1  #fine if sul file
+
+} 
+
 
 ############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 10 GIORNI 
       query_cancella_riga<-paste("delete from ",nome_tavola_recente ," where Data_e_ora<'",Sys.Date()-10,"'", sep="")
@@ -254,20 +262,26 @@ while( i <= length(nomefile) ){
 #        quit(status=1)
 #      }
 ###########
-#__________________________________
-#zippo file di dati inseriti 
-  comando<-paste("gzip ", nomefile[i], sep=" ")
-  #print(paste("@@@",comando,sep=""))
-  rizzippo <-try(readLines(pipe(comando)),silent=TRUE)
-  if (inherits(rizzippo,"try-error")) {
-    cat(rizzippo,"\n",file=file_log,append=T)
-    quit(status=1)
-  }
-#__________________________________
 
-  i <- i + 1  #fine if sul file
+#_______________________________________________________
+#    COPIA info da nome_tavola_recente a nome_tavola_AIB
+#_______________________________________________________
 
-} 
+      query_copia_riga<-paste("insert into ",nome_tavola_AIB ," (IDsensore,Data_e_ora,Misura,Flag_manuale_DBunico,Data)  (select sn.IDsensore , Data_e_ora ,Misura, Flag_manuale_DBunico, rt.Data from A_Sensori as sn, " , nome_tavola_recenti , " as rt where sn.IDsensore=rt.IDsensore and NOMEtipologia in ('FM','FT','HM','LT','LM')) 
+ on duplicate key update ",nome_tavola_AIB,".Data=values(Data)", sep="")
+      q_copia_riga <- try(dbGetQuery(conn, query_copia_riga),silent=TRUE)
+      if (inherits(q_copia_riga,"try-error")) 
+        #cat(q_copia_riga,"\n",file=file_log,append=T)
+        quit(status=1)
+      }
+
+############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 365 GIORNI nella tavola AIB
+      query_cancella_riga<-paste("delete from ",nome_tavola_AIB ," where Data_e_ora<'",Sys.Date()-365,"'", sep="")
+      q_canc_riga <- try(dbGetQuery(conn, query_cancella_riga),silent=TRUE)
+      if (inherits(q_canc_riga,"try-error")) {
+        #cat(q_canc_riga,"\n",file=file_log,append=T)
+        quit(status=1)
+      }
 
 #___________________________________________________
 #    DISCONNESSIONE DAL DB

@@ -28,7 +28,7 @@ cat("collegamento al DB...",file=file_log,append=T)
 #definisco driver
 drv<-dbDriver("MySQL")
 
-conn<-try(dbConnect(drv, user=as.character(Sys.getenv("MYSQL_USR")), password=as.character(Sys.getenv("MYSQL_PWD")), dbname=as.character(Sys.getenv("MYSQL_DBNAME")), host=as.character(Sys.getenv("MYSQL_HOST"))))
+conn<-try(dbConnect(drv, user=as.character(Sys.getenv("MYSQL_USR")), password=as.character(Sys.getenv("MYSQL_PWD")), dbname=as.character(Sys.getenv("MYSQL_DBNAME")), host=as.character(Sys.getenv("MYSQL_HOST")), port=as.character(Sys.getenv("MYSQL_PORT"))))
 
 #___________________________________________________
 #    NOMI TABELLE da alimentare

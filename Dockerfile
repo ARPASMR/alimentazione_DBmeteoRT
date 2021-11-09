@@ -5,10 +5,9 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 RUN echo 'Acquire::http::Timeout "240";' >> /etc/apt/apt.conf.d/180Timeout
 # installo gli aggiornamenti ed i pacchetti necessari (courtesy of https://github.com/occ-data/containers/blob/master/grads/Dockerfile et al.)
 # tolti libc-dev zlib1g gcc gfortran g++ udunits-bin
-ENV HTTPS_PROXY=https://meteo:%meteo2010@proxy2.arpa.local:8080/
-ENV HTTP_PROXY=http://meteo:%meteo2010@proxy2.arpa.local:8080/
-ENV https_proxy=https://meteo:%meteo2010@proxy2.arpa.local:8080/
-ENV http_proxy=http://meteo:%meteo2010@proxy2.arpa.local:8080/
+ARG secret
+ENV https_proxy=https://$secret@proxy2.arpa.local:8080/
+ENV http_proxy=http://$secret@proxy2.arpa.local:8080/
 RUN apt-get update
 RUN apt-get -y install curl git locales dnsutils openssh-client smbclient procps util-linux build-essential ncftp rsync  
 RUN apt-get -y install nfs-common openssl libjpeg-dev libpng-dev 

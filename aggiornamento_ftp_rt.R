@@ -267,7 +267,7 @@ while( i <= length(nomefile) ){
 #    COPIA info da nome_tavola_recente a nome_tavola_AIB
 #_______________________________________________________
 
-      query_copia_riga<-paste("insert into ",nome_tavola_AIB ," (IDsensore,Data_e_ora,Misura,Flag_manuale_DBunico,Data)  (select sn.IDsensore , Data_e_ora ,Misura, Flag_manuale_DBunico, rt.Data from A_Sensori as sn, " , nome_tavola_recente , " as rt where sn.IDsensore=rt.IDsensore and NOMEtipologia in ('FM','FT','HM','LT','LM','HMU','HMM','HMS','LTU'.'LTM','LTS','LMU','LMM','LMS')) 
+      query_copia_riga<-paste("insert into ",nome_tavola_AIB ," (IDsensore,Data_e_ora,Misura,Flag_manuale_DBunico,Data)  (select sn.IDsensore , Data_e_ora ,Misura, Flag_manuale_DBunico, rt.Data from A_Sensori as sn, " , nome_tavola_recente , " as rt where sn.IDsensore=rt.IDsensore and NOMEtipologia in ('FM','FT','HM','LT','LM','HMU','HMM','HMS','LTU','LTM','LTS','LMU','LMM','LMS')) 
  on duplicate key update ",nome_tavola_AIB,".Data=values(Data)", sep="")
       q_copia_riga <- try(dbGetQuery(conn, query_copia_riga),silent=TRUE)
       if (inherits(q_copia_riga,"try-error")) 

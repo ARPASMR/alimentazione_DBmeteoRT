@@ -17,4 +17,9 @@ RUN mkdir -p /usr/local/src/myscripts/data
 COPY ./aggiornamento_ftp_rt_k8s.R ./getcsv_from_ftp_rt_k8s.sh /usr/local/src/myscripts/
 RUN chmod a+x -R /usr/local/src/myscripts
 WORKDIR /usr/local/src/myscripts
-CMD ["./getcsv_from_ftp_rt_k8s.sh"]
+RUN apt-get install -y ftp
+RUN apt-get install -y vim
+RUN chmod a+x launcher.sh
+RUN chmod a+x getcsv_from_ftp_rt.sh
+RUN mkdir /usr/local/src/myscripts/data
+CMD ["./launcher.sh"]

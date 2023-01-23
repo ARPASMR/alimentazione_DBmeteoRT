@@ -14,6 +14,7 @@ FTP_LOG=ftp_rt.log
 ERRE=/usr/bin/R
 #AGGIORNAMENTO_FTP=aggiornamento_ftp_rt.R
 #AGGIORNAMENTO_FTP=aggiornamento_ftp_rt_liris.R
+AGGIORNAMENTO_FTP=aggiornamento_ftp_rt_k8s.R
 #AGGIORNAMENTO_FTP_LOG=aggiornamento_ftp_test.log
 # Info di Log
 echo "#~### getcsv_from_ftp_rt.sh "`date  '+%Y/%m/%d %H:%M:%S'`" ###~#"
@@ -28,7 +29,7 @@ cd $DIRDATA
 # Scarica i dati e salvali sul PC locale
 rm -f $FTP_LOG
 NUM=`ls -1  TestRT*.csv | wc -l`
-ncftpget -u $FTP_USR -p $FTP_PWD -d $FTP_LOG -t 60 -DD ftp://$FTP_SERV/$FTP_DIR/TestRT*.csv
+ncftpget -u $FTP_USR -p $FTP_PWD -d $FTP_LOG -t 60 ftp://$FTP_SERV/$FTP_DIR/TestRT*.csv
 #$FTP -n -v -d <<FINE1 > $FTP_LOG
 #open $FTP_SERV
 #quote user $FTP_USR

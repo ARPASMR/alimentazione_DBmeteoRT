@@ -4,14 +4,18 @@
 ### MR                    31/07/2019      ###
 ### MR&MS dockerizzazione 20/01/2020      ###
 ### MR&MS aggiunta M_AIB  07/07/2021      ###
+### MR&AV aggiunta LIRIS  13/07/2022      ###
 #############################################      
 
 library(DBI)
 library(RMySQL)
+library(RPostgreSQL, warn.conflicts = FALSE)
+#library(RPostgreSQL)
 
 #_____________________________
 
-file_log        <- 'aggiornamento_ftp_rt.log'
+file_log        <- paste('aggiornamento_ftp_rt_',format(Sys.time(),format="%Y%m%d%H%M"),'.log',sep="")
+#
 neverstop<-function(){
   cat("EE..ERRORE durante l'esecuzione dello script!! Messaggio d'Errore prodotto:\n",file=file_log,append=T)
   quit()
@@ -19,9 +23,10 @@ neverstop<-function(){
 options(show.error.messages=TRUE,error=neverstop)
 
 cat ( "INSERIMENTO DATI METEO IN TABELLA TEMPO REALE", date()," \n\n" , file = file_log)
+inizio_run <- Sys.time()
 
 #___________________________________________________
-#    COLLEGAMENTO AL DB
+#    COLLEGAMENTO AL DB MYSQL
 #___________________________________________________
 
 cat("collegamento al DB...",file=file_log,append=T)
@@ -29,6 +34,29 @@ cat("collegamento al DB...",file=file_log,append=T)
 drv<-dbDriver("MySQL")
 
 conn<-try(dbConnect(drv, user=as.character(Sys.getenv("MYSQL_USR")), password=as.character(Sys.getenv("MYSQL_PWD")), dbname=as.character(Sys.getenv("MYSQL_DBNAME")), host=as.character(Sys.getenv("MYSQL_HOST")), port=as.numeric(Sys.getenv("MYSQL_PORT"))))
+if (inherits(conn,"try-error")) {
+  print( "ERRORE nell'apertura della connessione al DB IRIS \n")
+  dbDisconnect(conn)
+  rm(conn)
+  dbUnloadDriver(drv)
+  quit(status=1)
+}
+
+
+#___________________________________________________
+#    COLLEGAMENTO AL DB PSQL
+#___________________________________________________
+drv_psql<-dbDriver("PostgreSQL")
+conn_psql = try(dbConnect(drv_psql, user=as.character(Sys.getenv("PSQL_USR")), password=as.character(Sys.getenv("PSQL_PWD")), dbname=as.character(Sys.getenv("PSQL_DBNAME")), host=as.character(Sys.getenv("PSQL_HOST"))))
+if (inherits(conn_psql,"try-error")) {
+  print( "ERRORE nell'apertura della connessione al DB IRIS \n")
+  dbDisconnect(conn_psql)
+  rm(conn_psql)
+  dbUnloadDriver(drv_psql)
+  quit(status=1)
+}
+
+
 
 #___________________________________________________
 #    NOMI TABELLE da alimentare
@@ -214,17 +242,72 @@ while( i <= length(nomefile) ){
 #sostituisco eventuali NA
           stringa <- gsub("NA","NULL",stringa)
 
+
+#---------------- stringa per PSQL
+
+          valori_perpsql <-vector(length=length(riga$IDsensore))
+          get_nometipologia <-vector(length=length(riga$IDsensore))
+
+          get_nometipologia <- paste ("get_nometipo(",IDsensore[],")", sep="")
+
+          valori_perpsql[] <- paste ( "(",
+                              riga$IDsensore[]           , ","  , 
+                              get_nometipologia[]        , ","  , 
+                              riga$IDoperatore[]         , ","  , 
+                              riga$Data_e_ora[]          , ","  , 
+                              riga$Misura[]              , ",'"  , 
+                              'da_ftp'                   , "',"  ,
+                              riga$Data[]                , ")" ,sep="")
+
+          stringa_perpsql<-NULL
+          stringa_perpsql <- toString(valori_perpsql[])
+
+
 #_____________________________________________________
-# SCRITTURA IN TABELLA 
+# SCRITTURA IN TABELLA LIRIS 
+#______________________________________________________
+          
+         cat("inserimento righe in tavola m_osservazioni_tr: \n", file=file_log, append=T)
+
+ii<-1
+while( ii <= length(valori_perpsql) ){
+##          cat ( "contatore ii ", ii," \n", file= file_log, append=T)
+#       insert se il dato è completo (Flag_manuale_DBunico non è 2) e se non è già stato inserito
+        if(riga$Flag_manuale_DBunico[ii] <= 0) {
+          query_select_riga_liris<-paste("select count(*) as numero from realtime.m_osservazioni_tr where idsensore=", riga$IDsensore[ii]," and idoperatore=", riga$IDoperatore[ii]," and data_e_ora=", riga$Data_e_ora[ii], sep="")
+          select_riga_liris <- try(dbGetQuery(conn_psql,query_select_riga_liris),silent=TRUE)
+          if (inherits(select_riga_liris,"try-error")) {
+            cat("errore in select_riga_liris\n",file=file_log,append=T)
+            cat(select_riga_liris,"\n",file=file_log,append=T)
+          }
+          # numero_record <- fetch(select_riga_liris,n=1)
+          #cat ( " numero di  record: ",select_riga_liris$numero," \n", file= file_log, append=T)
+	  if(select_riga_liris$numero >0){
+#          cat ( " il record esiste gia \n", file= file_log, append=T)
+          }else{
+           query_inserimento_riga_liris<-paste("insert into realtime.m_osservazioni_tr (idsensore, nometipologia, idoperatore, data_e_ora, misura, autore, data) values ", valori_perpsql[ii], sep="")
+          #cat ( " query inserisci > ", query_inserimento_riga_liris," \n", file= file_log, append=T)
+          inserimento_riga_liris <- try(dbGetQuery(conn_psql,query_inserimento_riga_liris),silent=TRUE)
+           if (inherits(inserimento_riga_liris,"try-error")) {
+             cat("errore in inserimento_riga_liris\n",file=file_log,append=T)
+            cat(inserimento_riga_liris,"\n",file=file_log,append=T)
+           }
+          }
+         }
+ ii <- ii + 1  
+} 
+
+#_____________________________________________________
+# SCRITTURA IN TABELLA DBmeteo 
 #______________________________________________________
 # preparo query e inserisco record
 #print("inserimento righe in tavola recenti")
           cat("inserimento righe in tavola recenti: ", nome_tavola_recente,"\n", file=file_log, append=T)
           query_inserimento_riga<-paste("insert into ",nome_tavola_recente,
                                         " values ", stringa,
-                                        " on duplicate key update Data=values(Data)", sep="")
-          cat ( " query inserisci > ", query_inserimento_riga," \n", file= file_log, append=T)
-          cat ( " effetua query inserimento \n", file= file_log, append=T)
+                                        " on duplicate key update Misura=values(Misura)", sep="")
+#          cat ( " query inserisci > ", query_inserimento_riga," \n", file= file_log, append=T)
+          cat ( " effettua query inserimento in dbmeteo \n", file= file_log, append=T)
           inserimento_riga <- try(dbGetQuery(conn,query_inserimento_riga),silent=TRUE)
           if (inherits(inserimento_riga,"try-error")) {
             cat(inserimento_riga,"\n",file=file_log,append=T)
@@ -247,7 +330,32 @@ while( i <= length(nomefile) ){
 } 
 
 
-############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 10 GIORNI 
+############  CANCELLO RECORD RELATIVI A SENSORI NON IN ANAGRAFICA IN LIRIS 
+      query_cancella_riga<-paste("delete from realtime.m_osservazioni_tr where nometipologia is null", sep="")
+      q_canc_riga <- try(dbGetQuery(conn_psql, query_cancella_riga),silent=TRUE)
+      if (inherits(q_canc_riga,"try-error")) {
+        #cat(q_canc_riga,"\n",file=file_log,append=T)
+        quit(status=1)
+      }
+
+############  COPIO DATI ULTIMI 5 GIORNI DA M_OSSERVAZIONE_TR DI LIRIS IN DBPIGAL 
+
+#   susanna
+#   susanna
+#   susanna
+#   susanna
+#   susanna
+#   susanna
+############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 5 GIORNI NEL DBPIGAL 
+
+#   susanna
+#   susanna
+#   susanna
+#   susanna
+
+
+
+############  CANCELLO RECORD RELATIVI A ISTANTI PRECEDENTI AI 10 GIORNI NEL DBmeteo 
       query_cancella_riga<-paste("delete from ",nome_tavola_recente ," where Data_e_ora<'",Sys.Date()-10,"'", sep="")
       q_canc_riga <- try(dbGetQuery(conn, query_cancella_riga),silent=TRUE)
       if (inherits(q_canc_riga,"try-error")) {
@@ -269,8 +377,9 @@ while( i <= length(nomefile) ){
 
       query_copia_riga<-paste("insert into ",nome_tavola_AIB ," (IDsensore,Data_e_ora,Misura,Flag_manuale_DBunico,Data)  (select sn.IDsensore , Data_e_ora ,Misura, Flag_manuale_DBunico, rt.Data from A_Sensori as sn, " , nome_tavola_recente , " as rt where sn.IDsensore=rt.IDsensore and NOMEtipologia in ('FM','FT','HM','LT','LM','HMU','HMM','HMS','LTU','LTM','LTS','LMU','LMM','LMS')) 
  on duplicate key update ",nome_tavola_AIB,".Data=values(Data)", sep="")
+      cat ( " copia in tabella M_AIB  \n", file= file_log, append=T)
       q_copia_riga <- try(dbGetQuery(conn, query_copia_riga),silent=TRUE)
-      if (inherits(q_copia_riga,"try-error")) 
+      if (inherits(q_canc_riga,"try-error")) {
         #cat(q_copia_riga,"\n",file=file_log,append=T)
         quit(status=1)
       }
@@ -293,7 +402,10 @@ dbDisconnect(conn)
 rm(conn)
 dbUnloadDriver(drv)
 
-cat ( "PROGRAMMA ESEGUITO CON SUCCESSO alle ", date()," \n" , file = file_log , append = TRUE )
+fine_run <- Sys.time()
+durata <- fine_run - inizio_run
+cat ( "esecuzione durata ", durata,"  \n" , file = file_log , append = TRUE )
+cat ( "PROGRAMMA ESEGUITO CON SUCCESSO alle ", date(),"  \n" , file = file_log , append = TRUE )
 quit(status=0)
 
 
